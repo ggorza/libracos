@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EscanerIsbn from './EscanerIsbn'
+import MisOfertas from './MisOfertas'
 
 
 export default function VenderPage() {
@@ -488,6 +489,13 @@ export default function VenderPage() {
           </div>
         )}
       </div>
+
+      <div className="max-w-md mx-auto mt-8 pb-8">
+        <MisOfertas usuario={usuario} refrescar={exito} />
+      </div>
+
+      
+
     </main>
   )
 }

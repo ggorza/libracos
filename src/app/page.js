@@ -35,14 +35,19 @@ export default async function Home() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-600">📚 Libracos</h1>
           <nav className="flex items-center gap-3">
+            <a
+              href="https://cafecito.app/ggorza"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-amber-600 hover:text-amber-700"
+              title="Si Libracos te sirvió, invitame un cafecito"
+            >
+              ☕ Apoyá el proyecto
+            </a>
             {user ? (
               <>
-                <Link
-                  href="/mis-libros"
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Mis libros
-                </Link>
+               
+               
                 <span className="text-sm text-gray-600">
                   Hola, {user.user_metadata?.nombre || user.email}
                 </span>
@@ -73,6 +78,14 @@ export default async function Home() {
           Publicá los libros que necesitás, ofrecé los que ya no usás.
         </p>
         <div className="mt-8 flex gap-3 justify-center">
+
+           <Link
+            href="/buscar"
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700"
+          >
+            Buscar un libro
+          </Link>
+          
           <Link
             href="/vender"
             className="bg-green-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-green-700"
