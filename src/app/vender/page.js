@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import EscanerIsbn from './EscanerIsbn'
+
 
 export default function VenderPage() {
   const router = useRouter()
@@ -25,6 +27,8 @@ export default function VenderPage() {
   const [editorialManual, setEditorialManual] = useState('')
   const [imagenManual, setImagenManual] = useState('')
   const [errorManual, setErrorManual] = useState(null)
+  const [escaneando, setEscaneando] = useState(false)
+
 
   // Solo usuarios logueados pueden vender
   useEffect(() => {
@@ -40,6 +44,21 @@ export default function VenderPage() {
   function normalizarIsbn(valor) {
     return valor.replace(/[-\s]/g, '')
   }
+
+   function procesarEscaneo(texto) {
+    setEscaneando(false)
+    const isbnLimpio = normalizarIsbn(texto)
+    setIsbn(isbnLimpio)
+    if (!isbnValido(isbnLimpio)) {
+      setError(
+        'El código escaneado no parece un ISBN válido. Probá escanear de nuevo o tipealo a mano.'
+      )
+      return
+    }
+    buscarLibroPorIsbn(isbnLimpio)
+  }
+
+
 
   // Valida el dígito verificador (ISBN-13 e ISBN-10)
   function isbnValido(isbnLimpio) {
@@ -121,20 +140,9 @@ export default function VenderPage() {
     return null
   }
 
-  async function buscarLibro(e) {
-    e.preventDefault()
+    async function buscarLibroPorIsbn(isbnLimpio) {
     setError(null)
     setLibro(null)
-
-    const isbnLimpio = normalizarIsbn(isbn)
-
-    if (!isbnValido(isbnLimpio)) {
-      setError(
-        'Ese ISBN no es válido (el dígito verificador no coincide). Revisá que esté bien tipeado, es el número junto al código de barras.'
-      )
-      return
-    }
-
     setBuscando(true)
 
     let encontrado = await buscarEnCatalogo(isbnLimpio)
@@ -149,6 +157,28 @@ export default function VenderPage() {
     }
     setBuscando(false)
   }
+
+  async function buscarLibro(e) {
+    e.preventDefault()
+    setError(null)
+    setLibro(null)
+
+    const isbnLimpio = normalizarIsbn(isbn)
+
+    if (!isbnValido(isbnLimpio)) {
+      setError(
+        'Ese ISBN no es válido (el dígito verificador no coincide). Revisá que esté bien tipeado, es el número junto al código de barras.'
+      )
+      return
+    }
+
+    await buscarLibroPorIsbn(isbnLimpio)
+  }
+
+
+
+
+
 
   function confirmarManual(e) {
     e.preventDefault()
@@ -336,30 +366,63 @@ export default function VenderPage() {
               ← Probar con otro ISBN
             </button>
           </form>
+        
         ) : !libro ? (
-          <form onSubmit={buscarLibro} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">ISBN</label>
-              <input
-                type="text"
-                required
-                value={isbn}
-                onChange={(e) => setIsbn(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
-                placeholder="Ej: 9789504657378"
-                inputMode="numeric"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={buscando}
-              className="w-full bg-blue-600 text-white rounded-lg py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {buscando ? 'Buscando...' : 'Buscar libro'}
-            </button>
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-          </form>
+          escaneando ? (
+            <EscanerIsbn
+              onDetectado={procesarEscaneo}
+              onError={(msj) => {
+                setEscaneando(false)
+                setError(msj)
+              }}
+              onCerrar={() => setEscaneando(false)}
+            />
+          ) : (
+            <form onSubmit={buscarLibro} className="space-y-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setEscaneando(true)
+                }}
+                className="w-full bg-blue-600 text-white rounded-lg py-3 font-medium hover:bg-blue-700"
+              >
+                📷 Escanear código de barras
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 border-t" />
+                <span className="text-xs text-gray-400">o tipealo</span>
+                <div className="flex-1 border-t" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">ISBN</label>
+                <input
+                  type="text"
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2"
+                  placeholder="Ej: 9789504657378"
+                  inputMode="numeric"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={buscando || !isbn}
+                className="w-full bg-gray-800 text-white rounded-lg py-2 font-medium hover:bg-gray-900 disabled:opacity-50"
+              >
+                {buscando ? 'Buscando...' : 'Buscar libro'}
+              </button>
+              {error && <p className="text-red-600 text-sm">{error}</p>}
+            </form>
+          )
         ) : (
+        
+
+
+
+
+
+
           <div className="space-y-4">
             <div className="flex gap-4 items-start bg-gray-50 rounded-lg p-4">
               {libro.imagen_url && (
