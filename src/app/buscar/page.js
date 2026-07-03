@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EscanerIsbn from '../vender/EscanerIsbn'
+import BotonContactar from './BotonContactar'
+
 
 export default function BuscarPage() {
   const router = useRouter()
@@ -269,7 +271,7 @@ export default function BuscarPage() {
     // 3. EL MOMENTO MATCH: ¿alguien lo está vendiendo?
     const { data: ofertas } = await supabase
       .from('ofertas')
-      .select('id, precio, estado_libro, perfiles (nombre, colegio)')
+      .select('id, vendedor_id, precio, estado_libro, perfiles (nombre, colegio)')
       .eq('isbn', libro.isbn)
       .eq('estado', 'disponible')
       .order('precio', { ascending: true })
@@ -417,15 +419,21 @@ export default function BuscarPage() {
                               : 'Con uso'}
                         </p>
                       </div>
-                      <p className="font-bold text-green-700">
-                        ${oferta.precio.toLocaleString('es-AR')}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <p className="font-bold text-green-700">
+                          ${oferta.precio.toLocaleString('es-AR')}
+                        </p>
+                        <BotonContactar
+                          ofertaId={oferta.id}
+                          titulo={libroBuscado?.titulo}
+                          vendedorNombre={oferta.perfiles?.nombre}
+                          esPropia={oferta.vendedor_id === usuario.id}
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-400 mb-4">
-                  Pronto vas a poder contactarlos desde acá mismo. 😉
-                </p>
+
               </>
             ) : (
               <p className="text-gray-600 mb-4">

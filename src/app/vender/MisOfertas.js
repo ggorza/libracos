@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import BotonContactarInteresado from './BotonContactarInteresado'
 
 const ETIQUETA_ESTADO = {
   como_nuevo: 'Como nuevo',
@@ -13,6 +14,7 @@ export default function MisOfertas({ usuario, refrescar }) {
   const supabase = createClient()
 
   const [ofertas, setOfertas] = useState(null)
+  const [interesados, setInteresados] = useState({})
   const [editando, setEditando] = useState(null)
   const [nuevoPrecio, setNuevoPrecio] = useState('')
   const [editandoTapa, setEditandoTapa] = useState(null)
@@ -38,6 +40,25 @@ export default function MisOfertas({ usuario, refrescar }) {
       return
     }
     setOfertas(data)
+
+    // Interesados por cada oferta (padres que tocaron "Contactar")
+    const ids = (data || []).map((o) => o.id)
+    if (ids.length > 0) {
+      const { data: contactos } = await supabase
+        .from('contactos')
+        .select('id, oferta_id, creado_en, perfiles (nombre, colegio)')
+        .in('oferta_id', ids)
+        .order('creado_en', { ascending: false })
+
+      const porOferta = {}
+      for (const c of contactos || []) {
+        if (!porOferta[c.oferta_id]) porOferta[c.oferta_id] = []
+        porOferta[c.oferta_id].push(c)
+      }
+      setInteresados(porOferta)
+    } else {
+      setInteresados({})
+    }
   }
 
   async function marcarVendido(ofertaId) {
@@ -293,6 +314,36 @@ export default function MisOfertas({ usuario, refrescar }) {
                   >
                     Eliminar
                   </button>
+                </div>
+              )}
+
+              {interesados[oferta.id]?.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs font-medium text-gray-500 mb-2">
+                    {interesados[oferta.id].length}{' '}
+                    {interesados[oferta.id].length === 1
+                      ? 'padre se interesó'
+                      : 'padres se interesaron'}
+                    :
+                  </p>
+                  <ul className="space-y-2">
+                    {interesados[oferta.id].map((c) => (
+                      <li
+                        key={c.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-sm text-gray-600 truncate">
+                          {c.perfiles?.nombre}
+                          {c.perfiles?.colegio && ` · ${c.perfiles.colegio}`}
+                        </span>
+                        <BotonContactarInteresado
+                          contactoId={c.id}
+                          titulo={oferta.libros?.titulo}
+                          compradorNombre={c.perfiles?.nombre}
+                        />
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </li>
