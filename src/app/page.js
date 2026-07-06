@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import BotonSalir from './BotonSalir'
+import BotonContactar from './buscar/BotonContactar'
 
 const ETIQUETA_ESTADO = {
   como_nuevo: 'Como nuevo',
@@ -16,18 +17,40 @@ function formatearFecha(fechaIso) {
   })
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }) {
+  const params = await searchParams
+  const verMiColegio = params?.ver === 'mi-colegio'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: ultimasOfertas } = await supabase
+  let miColegioId = null
+  let miColegioNombre = null
+  if (user) {
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('colegio_id, colegios (nombre)')
+      .eq('id', user.id)
+      .maybeSingle()
+    miColegioId = perfil?.colegio_id || null
+    miColegioNombre = perfil?.colegios?.nombre || null
+  }
+
+  const { data: todasLasOfertas } = await supabase
     .from('ofertas')
     .select(
-      'id, precio, estado_libro, creado_en, libros (titulo, editorial, imagen_url), perfiles (nombre, colegio)'
+      'id, vendedor_id, precio, estado_libro, creado_en, libros (titulo, editorial, imagen_url), perfiles (nombre, colegio, colegio_id)'
     )
     .eq('estado', 'disponible')
     .order('creado_en', { ascending: false })
-    .limit(10)
+    .limit(20)
+
+  const ultimasOfertas =
+    verMiColegio && miColegioId
+      ? (todasLasOfertas || []).filter(
+          (o) => o.perfiles?.colegio_id === miColegioId
+        )
+      : todasLasOfertas || []
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -46,6 +69,12 @@ export default async function Home() {
             </a>
             {user ? (
               <>
+                <Link
+                  href="/perfil"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Mi perfil
+                </Link>
                 <span className="text-sm text-gray-600">
                   Hola, {user.user_metadata?.nombre || user.email}
                 </span>
@@ -138,57 +167,111 @@ export default async function Home() {
 
       {/* Últimos libros */}
       <section className="max-w-4xl mx-auto px-4 py-10 pb-16">
-        <h3 className="text-xl font-bold mb-4">Últimos libros publicados</h3>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="text-xl font-bold">Últimos libros publicados</h3>
 
-        {!ultimasOfertas || ultimasOfertas.length === 0 ? (
+          {user && miColegioId && (
+            <div className="flex rounded-lg border overflow-hidden text-sm">
+              <Link
+                href="/"
+                className={`px-3 py-1.5 ${
+                  !verMiColegio
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Todos
+              </Link>
+              <Link
+                href="/?ver=mi-colegio"
+                className={`px-3 py-1.5 ${
+                  verMiColegio
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {miColegioNombre || 'Mi colegio'}
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {ultimasOfertas.length === 0 ? (
           <p className="text-gray-500 bg-white rounded-xl shadow p-6 text-center">
-            Todavía no hay libros publicados. ¡Sé el primero!
+            {verMiColegio
+              ? 'Todavía no hay libros publicados en tu colegio. Probá ver los de todos.'
+              : 'Todavía no hay libros publicados. ¡Sé el primero!'}
           </p>
         ) : (
           <ul className="space-y-3">
-            {ultimasOfertas.map((oferta) => (
-              <li
-                key={oferta.id}
-                className="bg-white rounded-xl shadow p-4 flex items-center gap-4"
-              >
-                {oferta.libros?.imagen_url ? (
-                  <img
-                    src={oferta.libros.imagen_url}
-                    alt={oferta.libros.titulo}
-                    className="w-12 h-16 object-cover rounded"
-                  />
-                ) : (
-                  <div className="w-12 h-16 bg-gray-100 rounded flex items-center justify-center text-2xl">
-                    📖
+            {ultimasOfertas.map((oferta) => {
+              const esPropia = user && oferta.vendedor_id === user.id
+              return (
+                <li
+                  key={oferta.id}
+                  className="bg-white rounded-xl shadow p-4 flex items-center gap-4"
+                >
+                  {oferta.libros?.imagen_url ? (
+                    <img
+                      src={oferta.libros.imagen_url}
+                      alt={oferta.libros.titulo}
+                      className="w-12 h-16 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-12 h-16 bg-gray-100 rounded flex items-center justify-center text-2xl">
+                      📖
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">
+                      {oferta.libros?.titulo}
+                      {esPropia && (
+                        <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          Es tuyo
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {oferta.libros?.editorial}
+                      {oferta.libros?.editorial && ' · '}
+                      {ETIQUETA_ESTADO[oferta.estado_libro]}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {user ? (
+                        <>
+                          Ofrecido por {oferta.perfiles?.nombre}
+                          {oferta.perfiles?.colegio &&
+                            `, del ${oferta.perfiles.colegio}`}
+                          , el {formatearFecha(oferta.creado_en)}
+                        </>
+                      ) : (
+                        <>Publicado el {formatearFecha(oferta.creado_en)}</>
+                      )}
+                    </p>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">
-                    {oferta.libros?.titulo}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {oferta.libros?.editorial}
-                    {oferta.libros?.editorial && ' · '}
-                    {ETIQUETA_ESTADO[oferta.estado_libro]}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <div className="flex flex-col items-end gap-2">
+                    <p className="font-bold text-green-700 whitespace-nowrap">
+                      ${oferta.precio.toLocaleString('es-AR')}
+                    </p>
                     {user ? (
-                      <>
-                        Ofrecido por {oferta.perfiles?.nombre}
-                        {oferta.perfiles?.colegio &&
-                          `, del ${oferta.perfiles.colegio}`}
-                        , el {formatearFecha(oferta.creado_en)}
-                      </>
+                      <BotonContactar
+                        ofertaId={oferta.id}
+                        titulo={oferta.libros?.titulo}
+                        vendedorNombre={oferta.perfiles?.nombre}
+                        esPropia={esPropia}
+                      />
                     ) : (
-                      <>Publicado el {formatearFecha(oferta.creado_en)}</>
+                      <Link
+                        href="/registro"
+                        className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-green-700 whitespace-nowrap"
+                      >
+                        💬 Contactar
+                      </Link>
                     )}
-                  </p>
-                </div>
-                <p className="font-bold text-green-700 whitespace-nowrap">
-                  ${oferta.precio.toLocaleString('es-AR')}
-                </p>
-              </li>
-            ))}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
