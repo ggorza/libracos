@@ -4,44 +4,35 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-
-// Colegios disponibles en el desplegable.
-// A medida que Libracos crezca, se suman acá (y en el futuro, F-2: tabla en la base)
-const COLEGIOS = ['Norbridge Sede Saavedra']
-
-const OTRO = 'otro'
+import BuscadorColegio from './BuscadorColegio'
 
 export default function RegistroPage() {
   const router = useRouter()
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
-  const [colegioSeleccion, setColegioSeleccion] = useState(COLEGIOS[0])
-  const [colegioOtro, setColegioOtro] = useState('')
+  const [colegio, setColegio] = useState(null) // { osm_place_id, nombre, direccion, lat, lon } | null
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [cargando, setCargando] = useState(false)
 
-  const esOtro = colegioSeleccion === OTRO
-
   async function handleRegistro(e) {
     e.preventDefault()
     setError(null)
 
-    const colegio = esOtro ? colegioOtro.trim() : colegioSeleccion
     if (!colegio) {
-      setError('Contanos el nombre de tu colegio.')
+      setError('Elegí tu colegio de la lista para continuar.')
       return
     }
 
     setCargando(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { nombre, telefono, colegio },
+        data: { nombre, telefono, colegio: colegio.nombre },
       },
     })
 
@@ -50,6 +41,51 @@ export default function RegistroPage() {
       setError(error.message || JSON.stringify(error))
       setCargando(false)
       return
+    }
+
+    // Ya hay sesión: ahora sí podemos buscar-o-crear el colegio y asociarlo
+    if (data.user) {
+      let colegioId
+      const { data: existente } = await supabase
+        .from('colegios')
+        .select('id')
+        .eq('osm_place_id', colegio.osm_place_id)
+        .maybeSingle()
+
+      if (existente) {
+        colegioId = existente.id
+      } else {
+        const { data: nuevo, error: errorCrear } = await supabase
+          .from('colegios')
+          .insert({
+            osm_place_id: colegio.osm_place_id,
+            nombre: colegio.nombre,
+            direccion: colegio.direccion,
+            lat: colegio.lat,
+            lon: colegio.lon,
+          })
+          .select('id')
+          .single()
+
+        if (errorCrear) {
+          // Carrera: otro lo creó en simultáneo → lo buscamos
+          const { data: reintento } = await supabase
+            .from('colegios')
+            .select('id')
+            .eq('osm_place_id', colegio.osm_place_id)
+            .maybeSingle()
+          colegioId = reintento?.id
+        } else {
+          colegioId = nuevo.id
+        }
+      }
+
+      if (colegioId) {
+        await supabase
+          .from('perfiles')
+          .update({ colegio_id: colegioId })
+          .eq('id', data.user.id)
+      }
     }
 
     router.push('/')
@@ -78,9 +114,7 @@ export default function RegistroPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              WhatsApp
-            </label>
+            <label className="block text-sm font-medium mb-1">WhatsApp</label>
             <input
               type="tel"
               required
@@ -95,35 +129,8 @@ export default function RegistroPage() {
             <label className="block text-sm font-medium mb-1">
               Colegio de tus hijos
             </label>
-            <select
-              value={colegioSeleccion}
-              onChange={(e) => setColegioSeleccion(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 bg-white"
-            >
-              {COLEGIOS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-              <option value={OTRO}>Otro colegio...</option>
-            </select>
+            <BuscadorColegio onSeleccionado={setColegio} />
           </div>
-
-          {esOtro && (
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                ¿Cuál es tu colegio?
-              </label>
-              <input
-                type="text"
-                required
-                value={colegioOtro}
-                onChange={(e) => setColegioOtro(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
-                placeholder="Ej: San José de Flores"
-              />
-            </div>
-          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
@@ -138,9 +145,7 @@ export default function RegistroPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Contraseña
-            </label>
+            <label className="block text-sm font-medium mb-1">Contraseña</label>
             <input
               type="password"
               required
@@ -152,9 +157,7 @@ export default function RegistroPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <button
             type="submit"
