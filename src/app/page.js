@@ -46,8 +46,6 @@ export default async function Home() {
             </a>
             {user ? (
               <>
-               
-               
                 <span className="text-sm text-gray-600">
                   Hola, {user.user_metadata?.nombre || user.email}
                 </span>
@@ -70,22 +68,22 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-3xl font-bold mb-3">
-          Libros escolares usados, entre familias del colegio
+      {/* Hero */}
+      <section className="max-w-4xl mx-auto px-4 pt-16 pb-8 text-center">
+        <h2 className="text-3xl md:text-4xl font-bold mb-3">
+          Los libros del colegio, entre familias
         </h2>
-        <p className="text-gray-600">
-          Publicá los libros que necesitás, ofrecé los que ya no usás.
+        <p className="text-gray-600 max-w-xl mx-auto">
+          Conseguí los libros usados que necesitás y vendé los que ya no usás,
+          conectándote con otras familias. Sin intermediarios, sin costo.
         </p>
         <div className="mt-8 flex gap-3 justify-center">
-
-           <Link
+          <Link
             href="/buscar"
             className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700"
           >
             Buscar un libro
           </Link>
-          
           <Link
             href="/vender"
             className="bg-green-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-green-700"
@@ -95,7 +93,51 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="max-w-4xl mx-auto px-4 pb-16">
+      {/* Cómo funciona: solo para visitantes no logueados */}
+      {!user && (
+        <section className="max-w-4xl mx-auto px-4 py-10">
+          <h3 className="text-center text-lg font-bold mb-8 text-gray-700">
+            ¿Cómo funciona?
+          </h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl shadow p-6 text-center">
+              <div className="text-3xl mb-3">📝</div>
+              <p className="font-semibold mb-1">1. Publicá</p>
+              <p className="text-sm text-gray-500">
+                Cargá los libros que buscás o los que tenés para vender.
+                Escaneás el código de barras y listo.
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow p-6 text-center">
+              <div className="text-3xl mb-3">🔗</div>
+              <p className="font-semibold mb-1">2. Conectá</p>
+              <p className="text-sm text-gray-500">
+                Libracos cruza lo que buscás con lo que otras familias ofrecen
+                y te avisa cuando hay coincidencia.
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow p-6 text-center">
+              <div className="text-3xl mb-3">💬</div>
+              <p className="font-semibold mb-1">3. Coordiná</p>
+              <p className="text-sm text-gray-500">
+                Se ponen de acuerdo por WhatsApp y arreglan la entrega como les
+                quede cómodo. Simple y directo.
+              </p>
+            </div>
+          </div>
+          <div className="text-center mt-8">
+            <Link
+              href="/registro"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700"
+            >
+              Crear mi cuenta gratis
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Últimos libros */}
+      <section className="max-w-4xl mx-auto px-4 py-10 pb-16">
         <h3 className="text-xl font-bold mb-4">Últimos libros publicados</h3>
 
         {!ultimasOfertas || ultimasOfertas.length === 0 ? (
@@ -150,6 +192,21 @@ export default async function Home() {
           </ul>
         )}
       </section>
+
+      {/* Pie */}
+      <footer className="border-t bg-white">
+        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
+          Libracos · Hecho por un papá, para las familias del colegio ·{' '}
+          <a
+            href="https://cafecito.app/ggorza"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-600 hover:text-amber-700"
+          >
+            ☕ Apoyá el proyecto
+          </a>
+        </div>
+      </footer>
     </main>
   )
 }
