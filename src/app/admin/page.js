@@ -45,7 +45,7 @@ export default function AdminPage() {
     setAutorizado(true)
 
     // Cargar todo en paralelo
-    const [perfiles, libros, ofertas, busquedas, contactos] =
+    const [perfiles, libros, ofertas, busquedas, contactos, colegios] =
       await Promise.all([
         supabase
           .from('perfiles')
@@ -65,6 +65,10 @@ export default function AdminPage() {
             'id, creado_en, perfiles (nombre, telefono, colegio), ofertas (libros (titulo), perfiles (nombre))'
           )
           .order('creado_en', { ascending: false }),
+        supabase
+          .from('colegios')
+          .select('id, nombre, direccion, creado_en')
+          .order('creado_en', { ascending: false }),
       ])
 
     setDatos({
@@ -73,6 +77,7 @@ export default function AdminPage() {
       ofertas: ofertas.data || [],
       busquedas: busquedas.data || [],
       contactos: contactos.data || [],
+      colegios: colegios.data || [],
     })
   }
 
@@ -114,6 +119,7 @@ export default function AdminPage() {
   ).length
 
   const metricas = [
+    { label: 'Colegios activos', valor: datos.colegios.length },
     { label: 'Padres registrados', valor: datos.perfiles.length },
     { label: 'Libros en catálogo', valor: datos.libros.length },
     { label: 'Ofertas disponibles', valor: ofertasDisponibles },
@@ -182,6 +188,41 @@ export default function AdminPage() {
                       </td>
                       <td className="p-3">{c.ofertas?.libros?.titulo}</td>
                       <td className="p-3">{c.ofertas?.perfiles?.nombre}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+
+        {/* Colegios */}
+        <section className="mb-8">
+          <h2 className="text-lg font-bold mb-3">
+            Colegios activos ({datos.colegios.length})
+          </h2>
+          <div className="bg-white rounded-xl shadow overflow-x-auto">
+            {datos.colegios.length === 0 ? (
+              <p className="text-gray-500 text-sm p-4">
+                Todavía no hay colegios registrados.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-left text-gray-500">
+                  <tr>
+                    <th className="p-3">Alta</th>
+                    <th className="p-3">Nombre</th>
+                    <th className="p-3">Dirección</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datos.colegios.map((c) => (
+                    <tr key={c.id} className="border-t">
+                      <td className="p-3 whitespace-nowrap">
+                        {formatearFecha(c.creado_en)}
+                      </td>
+                      <td className="p-3">{c.nombre}</td>
+                      <td className="p-3 text-gray-500">{c.direccion}</td>
                     </tr>
                   ))}
                 </tbody>
