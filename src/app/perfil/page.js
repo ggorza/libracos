@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import BuscadorColegio from '../registro/BuscadorColegio'
+import { buscarOCrearColegio } from '@/lib/colegios'
 
 export default function PerfilPage() {
   const router = useRouter()
@@ -16,8 +17,8 @@ export default function PerfilPage() {
   // Datos del perfil
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
-  const [colegioActual, setColegioActual] = useState(null) // { nombre } del colegio ya guardado
-  const [colegioNuevo, setColegioNuevo] = useState(null) // si elige uno nuevo del buscador
+  const [colegioActual, setColegioActual] = useState(null)
+  const [colegioNuevo, setColegioNuevo] = useState(null)
   const [cambiarColegio, setCambiarColegio] = useState(false)
 
   const [guardando, setGuardando] = useState(false)
@@ -32,7 +33,6 @@ export default function PerfilPage() {
   const [errorPass, setErrorPass] = useState(null)
 
   // Baja
-
   const [confirmacionBaja, setConfirmacionBaja] = useState('')
   const [eliminando, setEliminando] = useState(false)
   const [errorBaja, setErrorBaja] = useState(null)
@@ -64,49 +64,25 @@ export default function PerfilPage() {
     e.preventDefault()
     setErrorDatos(null)
     setOkDatos(false)
+
+    const telefonoLimpio = telefono.replace(/[\s-]/g, '')
+    if (!/^\d{10}$/.test(telefonoLimpio)) {
+      setErrorDatos(
+        'El WhatsApp tiene que ser de 10 dígitos, sin 0 ni 15. Ej: 1155556666.'
+      )
+      return
+    }
+
     setGuardando(true)
 
-    const cambios = { nombre, telefono }
+    const cambios = { nombre, telefono: telefonoLimpio }
 
-    // Si eligió un colegio nuevo, lo buscamos-o-creamos y lo asociamos
+    // Si eligió un colegio nuevo, dedup (por place_id y coordenadas) y asociar
     if (cambiarColegio && colegioNuevo) {
-      let colegioId
-      const { data: existente } = await supabase
-        .from('colegios')
-        .select('id')
-        .eq('osm_place_id', colegioNuevo.osm_place_id)
-        .maybeSingle()
-
-      if (existente) {
-        colegioId = existente.id
-      } else {
-        const { data: nuevo, error: errorCrear } = await supabase
-          .from('colegios')
-          .insert({
-            osm_place_id: colegioNuevo.osm_place_id,
-            nombre: colegioNuevo.nombre,
-            direccion: colegioNuevo.direccion,
-            lat: colegioNuevo.lat,
-            lon: colegioNuevo.lon,
-          })
-          .select('id')
-          .single()
-
-        if (errorCrear) {
-          const { data: reintento } = await supabase
-            .from('colegios')
-            .select('id')
-            .eq('osm_place_id', colegioNuevo.osm_place_id)
-            .maybeSingle()
-          colegioId = reintento?.id
-        } else {
-          colegioId = nuevo.id
-        }
-      }
-
+      const colegioId = await buscarOCrearColegio(supabase, colegioNuevo)
       if (colegioId) {
         cambios.colegio_id = colegioId
-        cambios.colegio = colegioNuevo.nombre // mantenemos el texto sincronizado
+        cambios.colegio = colegioNuevo.nombre // texto sincronizado
       }
     }
 
@@ -123,7 +99,6 @@ export default function PerfilPage() {
       return
     }
 
-    // Reflejar el cambio de colegio en pantalla
     if (cambios.colegio_id && colegioNuevo) {
       setColegioActual({ nombre: colegioNuevo.nombre })
       setCambiarColegio(false)
@@ -149,7 +124,6 @@ export default function PerfilPage() {
       return
     }
 
-    // Cerramos sesión y volvemos al inicio
     await supabase.auth.signOut()
     router.push('/')
     router.refresh()
@@ -267,9 +241,7 @@ export default function PerfilPage() {
             )}
           </div>
 
-          {errorDatos && (
-            <p className="text-red-600 text-sm">{errorDatos}</p>
-          )}
+          {errorDatos && <p className="text-red-600 text-sm">{errorDatos}</p>}
           {okDatos && (
             <p className="text-green-700 text-sm">✓ Cambios guardados.</p>
           )}
@@ -317,9 +289,7 @@ export default function PerfilPage() {
 
           {errorPass && <p className="text-red-600 text-sm">{errorPass}</p>}
           {okPass && (
-            <p className="text-green-700 text-sm">
-              ✓ Contraseña actualizada.
-            </p>
+            <p className="text-green-700 text-sm">✓ Contraseña actualizada.</p>
           )}
 
           <button
@@ -358,7 +328,6 @@ export default function PerfilPage() {
             {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta para siempre'}
           </button>
         </div>
-        
       </div>
     </main>
   )

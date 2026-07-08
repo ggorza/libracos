@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import BuscadorColegio from './BuscadorColegio'
+import { buscarOCrearColegio } from '@/lib/colegios'
 
 export default function RegistroPage() {
   const router = useRouter()
@@ -19,14 +20,11 @@ export default function RegistroPage() {
   const [abrioPrivacidad, setAbrioPrivacidad] = useState(false)
   const [esMayor, setEsMayor] = useState(false)
 
-
-
-
   async function handleRegistro(e) {
     e.preventDefault()
     setError(null)
 
-if (!colegio) {
+    if (!colegio) {
       setError('Elegí tu colegio de la lista para continuar.')
       return
     }
@@ -44,7 +42,7 @@ if (!colegio) {
       return
     }
 
-        if (!esMayor) {
+    if (!esMayor) {
       setError('Tenés que declarar que sos mayor de 18 años para registrarte.')
       return
     }
@@ -67,43 +65,9 @@ if (!colegio) {
       return
     }
 
-    // Ya hay sesión: ahora sí podemos buscar-o-crear el colegio y asociarlo
+    // Ya hay sesión: buscar-o-crear el colegio (dedup por place_id y coordenadas) y asociarlo
     if (data.user) {
-      let colegioId
-      const { data: existente } = await supabase
-        .from('colegios')
-        .select('id')
-        .eq('osm_place_id', colegio.osm_place_id)
-        .maybeSingle()
-
-      if (existente) {
-        colegioId = existente.id
-      } else {
-        const { data: nuevo, error: errorCrear } = await supabase
-          .from('colegios')
-          .insert({
-            osm_place_id: colegio.osm_place_id,
-            nombre: colegio.nombre,
-            direccion: colegio.direccion,
-            lat: colegio.lat,
-            lon: colegio.lon,
-          })
-          .select('id')
-          .single()
-
-        if (errorCrear) {
-          // Carrera: otro lo creó en simultáneo → lo buscamos
-          const { data: reintento } = await supabase
-            .from('colegios')
-            .select('id')
-            .eq('osm_place_id', colegio.osm_place_id)
-            .maybeSingle()
-          colegioId = reintento?.id
-        } else {
-          colegioId = nuevo.id
-        }
-      }
-
+      const colegioId = await buscarOCrearColegio(supabase, colegio)
       if (colegioId) {
         await supabase
           .from('perfiles')
