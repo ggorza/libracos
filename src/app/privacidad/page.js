@@ -90,7 +90,7 @@ export default function PrivacidadPage() {
             </p>
           </div>
 
-            <div>
+          <div>
             <h2 className="font-bold text-base mb-2 text-gray-900">
               Solo para mayores de 18 años
             </h2>
@@ -101,14 +101,16 @@ export default function PrivacidadPage() {
               buscamos datos de menores de edad.
             </p>
           </div>
-
+          
         </div>
 
         <div className="mt-8 pt-6 border-t">
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
-            ← Volver al inicio
-          </Link>
-        </div>
+          <p className="text-center text-blue-700 font-medium bg-blue-50 border border-blue-100 rounded-lg py-3 px-4">
+            👆 Si ya leíste la política, cerrá esta pestaña y volvé a la de
+            registro para continuar.
+          </p>
+         </div>
+
       </div>
     </main>
   )
