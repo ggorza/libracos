@@ -31,6 +31,12 @@ export default function PerfilPage() {
   const [okPass, setOkPass] = useState(false)
   const [errorPass, setErrorPass] = useState(null)
 
+  // Baja
+
+  const [confirmacionBaja, setConfirmacionBaja] = useState('')
+  const [eliminando, setEliminando] = useState(false)
+  const [errorBaja, setErrorBaja] = useState(null)
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
@@ -124,6 +130,29 @@ export default function PerfilPage() {
       setColegioNuevo(null)
     }
     setOkDatos(true)
+  }
+
+  async function eliminarCuenta() {
+    setErrorBaja(null)
+    if (confirmacionBaja !== 'ELIMINAR') {
+      setErrorBaja('Escribí ELIMINAR (en mayúsculas) para confirmar.')
+      return
+    }
+
+    setEliminando(true)
+    const { error } = await supabase.rpc('eliminar_mi_cuenta')
+
+    if (error) {
+      console.error('Error eliminando cuenta:', error)
+      setErrorBaja('No pudimos eliminar la cuenta. Probá de nuevo.')
+      setEliminando(false)
+      return
+    }
+
+    // Cerramos sesión y volvemos al inicio
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
   }
 
   async function guardarPassword(e) {
@@ -301,6 +330,35 @@ export default function PerfilPage() {
             {guardandoPass ? 'Guardando...' : 'Cambiar contraseña'}
           </button>
         </form>
+
+        {/* Eliminar cuenta */}
+        <div className="bg-white rounded-xl shadow p-6 mt-6 border border-red-100">
+          <h2 className="font-bold text-red-700">Eliminar mi cuenta</h2>
+          <p className="text-sm text-gray-600 mt-2 mb-4">
+            Esta acción es <strong>permanente e irreversible</strong>. Se
+            borrarán para siempre: tu perfil, todas tus publicaciones de libros,
+            tus búsquedas y tus contactos. No se puede deshacer.
+          </p>
+          <label className="block text-sm text-gray-600 mb-1">
+            Para confirmar, escribí <strong>ELIMINAR</strong>:
+          </label>
+          <input
+            type="text"
+            value={confirmacionBaja}
+            onChange={(e) => setConfirmacionBaja(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2 mb-3"
+            placeholder="ELIMINAR"
+          />
+          {errorBaja && <p className="text-red-600 text-sm mb-3">{errorBaja}</p>}
+          <button
+            onClick={eliminarCuenta}
+            disabled={eliminando || confirmacionBaja !== 'ELIMINAR'}
+            className="w-full bg-red-600 text-white rounded-lg py-2 font-medium hover:bg-red-700 disabled:opacity-50"
+          >
+            {eliminando ? 'Eliminando...' : 'Eliminar mi cuenta para siempre'}
+          </button>
+        </div>
+        
       </div>
     </main>
   )

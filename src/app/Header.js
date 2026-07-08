@@ -12,13 +12,11 @@ export default function Header() {
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    // Estado inicial
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUsuario(user)
       setCargando(false)
     })
 
-    // Escuchar cambios de sesión (login/logout) para actualizar el header solo
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -34,6 +32,8 @@ export default function Header() {
     router.refresh()
   }
 
+  const nombre = usuario?.user_metadata?.nombre
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-10">
       <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -41,7 +41,8 @@ export default function Header() {
           📚 Libracos
         </Link>
         <nav className="flex items-center gap-3">
-         <a 
+          
+          <a
             href="https://cafecito.app/ggorza"
             target="_blank"
             rel="noopener noreferrer"
@@ -67,10 +68,15 @@ export default function Header() {
               </Link>
               <Link
                 href="/perfil"
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-blue-600 hover:underline hidden sm:inline"
               >
                 Mi perfil
               </Link>
+              {nombre && (
+                <span className="text-sm text-gray-600 hidden sm:inline">
+                  Hola, {nombre.split(' ')[0]}
+                </span>
+              )}
               <button
                 onClick={salir}
                 className="text-sm text-gray-500 hover:text-gray-700"

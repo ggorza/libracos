@@ -15,13 +15,30 @@ export default function RegistroPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [cargando, setCargando] = useState(false)
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false)
+  const [abrioPrivacidad, setAbrioPrivacidad] = useState(false)
+
+
 
   async function handleRegistro(e) {
     e.preventDefault()
     setError(null)
 
-    if (!colegio) {
+if (!colegio) {
       setError('Elegí tu colegio de la lista para continuar.')
+      return
+    }
+
+    const telefonoLimpio = telefono.replace(/[\s-]/g, '')
+    if (!/^\d{10}$/.test(telefonoLimpio)) {
+      setError(
+        'El WhatsApp tiene que ser de 10 dígitos, sin 0 ni 15. Ej: 1155556666 (código de área + número).'
+      )
+      return
+    }
+
+    if (!aceptaPrivacidad) {
+      setError('Tenés que aceptar la política de privacidad para registrarte.')
       return
     }
 
@@ -32,7 +49,7 @@ export default function RegistroPage() {
       email,
       password,
       options: {
-        data: { nombre, telefono, colegio: colegio.nombre },
+        data: { nombre, telefono: telefonoLimpio, colegio: colegio.nombre },
       },
     })
 
@@ -155,6 +172,33 @@ export default function RegistroPage() {
               className="w-full border rounded-lg px-3 py-2"
               placeholder="Mínimo 6 caracteres"
             />
+          </div>
+
+          <div className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              id="privacidad"
+              checked={aceptaPrivacidad}
+              disabled={!abrioPrivacidad}
+              onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+              className="mt-1 disabled:opacity-40"
+            />
+            <label htmlFor="privacidad" className="text-sm text-gray-600">
+              {abrioPrivacidad ? (
+                <>Leí y acepto la </>
+              ) : (
+                <>Para continuar, abrí y leé la </>
+              )}
+              <Link
+                href="/privacidad"
+                target="_blank"
+                onClick={() => setAbrioPrivacidad(true)}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                política de privacidad
+              </Link>
+              .
+            </label>
           </div>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
