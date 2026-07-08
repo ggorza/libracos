@@ -247,7 +247,16 @@ export default async function Home({ searchParams }) {
       {/* Pie */}
       <footer className="border-t bg-white">
         <div className="max-w-4xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
-          Libracos · Hecho por un papá, para las familias del colegio ·{' '}
+          Libracos · Hecho por un papá, para las familias del colegio
+          <br className="sm:hidden" />
+          <span className="hidden sm:inline"> · </span>
+          <a
+            href="mailto:ggorza@msn.com?subject=Sugerencia para Libracos"
+            className="text-blue-600 hover:text-blue-700"
+          >
+            💡 Sugerencias
+          </a>
+          {' · '}
           <a
             href="https://cafecito.app/ggorza"
             target="_blank"
