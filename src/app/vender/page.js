@@ -99,7 +99,7 @@ export default function VenderPage() {
   async function buscarEnGoogleBooks(isbnLimpio) {
     try {
       const res = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnLimpio}`
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnLimpio}&key=${process.env.NEXT_PUBLIC_GOOGLE_BOOKS_KEY}`
       )
       const data = await res.json()
       if (data.totalItems > 0) {

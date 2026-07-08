@@ -82,10 +82,12 @@ function BuscarContenido() {
     return data
   }
 
+  
+
   async function buscarEnGoogleBooksPorIsbn(isbnLimpio) {
     try {
       const res = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnLimpio}`
+        `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbnLimpio}&key=${process.env.NEXT_PUBLIC_GOOGLE_BOOKS_KEY}`
       )
       const data = await res.json()
       if (data.totalItems > 0) {
@@ -200,7 +202,7 @@ function BuscarContenido() {
 
     try {
       const res = await fetch(
-        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8`
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8&key=${process.env.NEXT_PUBLIC_GOOGLE_BOOKS_KEY}`
       )
       const data = await res.json()
       for (const item of data.items || []) {
