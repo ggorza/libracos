@@ -41,19 +41,53 @@ export default function MisOfertas({ usuario, refrescar }) {
     }
     setOfertas(data)
 
-    // Interesados por cada oferta (padres que tocaron "Contactar")
+// Interesados por cada oferta (padres que tocaron "Contactar")
     const ids = (data || []).map((o) => o.id)
     if (ids.length > 0) {
       const { data: contactos } = await supabase
         .from('contactos')
-        .select('id, oferta_id, creado_en, perfiles (nombre, colegio)')
+        .select('id, oferta_id, creado_en, comprador_id')
         .in('oferta_id', ids)
         .order('creado_en', { ascending: false })
+
+      // Nombres y colegios de los interesados, vía vista pública
+      const compradorIds = [
+        ...new Set((contactos || []).map((c) => c.comprador_id)),
+      ]
+      let perfilPorId = {}
+      if (compradorIds.length > 0) {
+        const { data: perfiles } = await supabase
+          .from('perfiles_publicos')
+          .select('id, nombre, colegio_id')
+          .in('id', compradorIds)
+
+        const colegioIds = [
+          ...new Set((perfiles || []).map((p) => p.colegio_id).filter(Boolean)),
+        ]
+        let nombresColegios = {}
+        if (colegioIds.length > 0) {
+          const { data: cols } = await supabase
+            .from('colegios')
+            .select('id, nombre')
+            .in('id', colegioIds)
+          for (const c of cols || []) nombresColegios[c.id] = c.nombre
+        }
+
+        for (const p of perfiles || []) {
+          perfilPorId[p.id] = {
+            nombre: p.nombre,
+            colegio: nombresColegios[p.colegio_id] || null,
+          }
+        }
+      }
 
       const porOferta = {}
       for (const c of contactos || []) {
         if (!porOferta[c.oferta_id]) porOferta[c.oferta_id] = []
-        porOferta[c.oferta_id].push(c)
+        porOferta[c.oferta_id].push({
+          ...c,
+          perfiles: perfilPorId[c.comprador_id] || { nombre: '', colegio: null },
+        })
       }
       setInteresados(porOferta)
     } else {

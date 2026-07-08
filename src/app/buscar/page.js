@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EscanerIsbn from '../vender/EscanerIsbn'
 import BotonContactar from './BotonContactar'
 
-
 export default function BuscarPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   const [usuario, setUsuario] = useState(null)
@@ -24,7 +24,7 @@ export default function BuscarPage() {
   const [tituloManual, setTituloManual] = useState('')
   const [editorialManual, setEditorialManual] = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [matches, setMatches] = useState(null) // null = sin resultado aún
+  const [matches, setMatches] = useState(null)
   const [libroBuscado, setLibroBuscado] = useState(null)
   const [misBusquedas, setMisBusquedas] = useState(null)
   const [ofertasPorIsbn, setOfertasPorIsbn] = useState({})
@@ -37,6 +37,15 @@ export default function BuscarPage() {
       } else {
         setUsuario(user)
         cargarMisBusquedas(user.id)
+
+        // Si viene un ISBN en la URL (desde "Me interesa" de la home),
+        // precargamos el modo ISBN y buscamos el libro para que el padre confirme
+        const isbnUrl = searchParams.get('isbn')
+        if (isbnUrl) {
+          setModo('isbn')
+          setIsbn(isbnUrl)
+          buscarPorIsbn(isbnUrl.replace(/[-\s]/g, ''))
+        }
       }
     })
   }, [])
@@ -63,8 +72,6 @@ export default function BuscarPage() {
     }
     return false
   }
-
-  // ---------- Camino A: por ISBN ----------
 
   async function buscarEnCatalogo(isbnLimpio) {
     const { data } = await supabase
@@ -170,8 +177,6 @@ export default function BuscarPage() {
     setManual(false)
   }
 
-  // ---------- Camino B: por título ----------
-
   async function buscarPorTexto(e) {
     e.preventDefault()
     setError(null)
@@ -182,7 +187,6 @@ export default function BuscarPage() {
     const resultados = []
     const isbnsVistos = new Set()
 
-    // Fuente 1: nuestro catálogo (libros que otros padres ya cargaron)
     const { data: propios } = await supabase
       .from('libros')
       .select('isbn, titulo, autor, editorial, imagen_url')
@@ -194,7 +198,6 @@ export default function BuscarPage() {
       isbnsVistos.add(libro.isbn)
     }
 
-    // Fuente 2: Google Books por texto
     try {
       const res = await fetch(
         `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=8`
@@ -225,9 +228,7 @@ export default function BuscarPage() {
     setBuscando(false)
   }
 
-  // ---------- Registrar la búsqueda y buscar matches ----------
-
-  async function registrarBusqueda() {
+async function registrarBusqueda() {
     setError(null)
     setGuardando(true)
 
@@ -239,7 +240,6 @@ export default function BuscarPage() {
       imagen_url: libroElegido.imagen_url,
     }
 
-    // 1. El libro tiene que existir en el catálogo
     const { error: errorLibro } = await supabase
       .from('libros')
       .upsert(libro, { onConflict: 'isbn', ignoreDuplicates: true })
@@ -251,7 +251,6 @@ export default function BuscarPage() {
       return
     }
 
-    // 2. Registrar la búsqueda
     const { error: errorBusqueda } = await supabase.from('busquedas').insert({
       comprador_id: usuario.id,
       isbn: libro.isbn,
@@ -268,22 +267,54 @@ export default function BuscarPage() {
       return
     }
 
-    // 3. EL MOMENTO MATCH: ¿alguien lo está vendiendo?
+    // Traemos ofertas y, aparte, los nombres/colegios de sus vendedores (vía vista pública)
     const { data: ofertas } = await supabase
       .from('ofertas')
-      .select('id, vendedor_id, precio, estado_libro, perfiles (nombre, colegio)')
+      .select('id, vendedor_id, precio, estado_libro')
       .eq('isbn', libro.isbn)
       .eq('estado', 'disponible')
       .order('precio', { ascending: true })
 
+    let ofertasConVendedor = ofertas || []
+    if (ofertasConVendedor.length > 0) {
+      const vendedorIds = [...new Set(ofertasConVendedor.map((o) => o.vendedor_id))]
+      const { data: perfiles } = await supabase
+        .from('perfiles_publicos')
+        .select('id, nombre, colegio_id')
+        .in('id', vendedorIds)
+
+      const colegioIds = [
+        ...new Set((perfiles || []).map((p) => p.colegio_id).filter(Boolean)),
+      ]
+      let nombresColegios = {}
+      if (colegioIds.length > 0) {
+        const { data: cols } = await supabase
+          .from('colegios')
+          .select('id, nombre')
+          .in('id', colegioIds)
+        for (const c of cols || []) nombresColegios[c.id] = c.nombre
+      }
+
+      const perfilPorId = {}
+      for (const p of perfiles || []) {
+        perfilPorId[p.id] = {
+          nombre: p.nombre,
+          colegio: nombresColegios[p.colegio_id] || null,
+        }
+      }
+
+      ofertasConVendedor = ofertasConVendedor.map((o) => ({
+        ...o,
+        perfiles: perfilPorId[o.vendedor_id] || { nombre: '', colegio: null },
+      }))
+    }
+
     setLibroBuscado(libro)
-    setMatches(ofertas || [])
+    setMatches(ofertasConVendedor)
     setLibroElegido(null)
     setGuardando(false)
     cargarMisBusquedas(usuario.id)
   }
-
-  // ---------- Mis búsquedas ----------
 
   async function cargarMisBusquedas(usuarioId) {
     const { data } = await supabase
@@ -294,7 +325,6 @@ export default function BuscarPage() {
 
     setMisBusquedas(data || [])
 
-    // Conteo de ofertas disponibles por libro buscado
     const isbns = (data || [])
       .filter((b) => b.estado === 'activa')
       .map((b) => b.libros?.isbn)
@@ -358,7 +388,7 @@ export default function BuscarPage() {
   if (!usuario) return null
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4">
+    <main className="flex-1 bg-gray-50 p-4">
       <div className="max-w-2xl mx-auto mt-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">Buscar un libro</h1>
@@ -367,7 +397,6 @@ export default function BuscarPage() {
           </Link>
         </div>
 
-        {/* ---------- RESULTADO: el momento match ---------- */}
         {matches !== null ? (
           <div className="bg-white rounded-xl shadow p-6">
             <div className="flex gap-4 items-start mb-4">
@@ -433,7 +462,6 @@ export default function BuscarPage() {
                     </li>
                   ))}
                 </ul>
-
               </>
             ) : (
               <p className="text-gray-600 mb-4">
@@ -451,7 +479,6 @@ export default function BuscarPage() {
             </button>
           </div>
         ) : libroElegido ? (
-          /* ---------- CONFIRMACIÓN ---------- */
           <div className="bg-white rounded-xl shadow p-6 space-y-4">
             <div className="flex gap-4 items-start bg-gray-50 rounded-lg p-4">
               {libroElegido.imagen_url ? (
@@ -492,7 +519,6 @@ export default function BuscarPage() {
             </button>
           </div>
         ) : manual ? (
-          /* ---------- CARGA MANUAL (camino ISBN sin datos) ---------- */
           <form
             onSubmit={confirmarManual}
             className="bg-white rounded-xl shadow p-6 space-y-4"
@@ -539,7 +565,6 @@ export default function BuscarPage() {
             </button>
           </form>
         ) : (
-          /* ---------- ELECCIÓN: los dos caminos ---------- */
           <div className="bg-white rounded-xl shadow p-6">
             <div className="flex rounded-lg border overflow-hidden mb-5">
               <button
@@ -694,7 +719,6 @@ export default function BuscarPage() {
           </div>
         )}
 
-        {/* ---------- MIS BÚSQUEDAS ---------- */}
         <div className="mt-8">
           <h2 className="text-lg font-bold mb-3">Mis búsquedas</h2>
           {misBusquedas === null ? (

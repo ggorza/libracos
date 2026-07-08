@@ -1,7 +1,5 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import BotonSalir from './BotonSalir'
-import BotonContactar from './buscar/BotonContactar'
 
 const ETIQUETA_ESTADO = {
   como_nuevo: 'Como nuevo',
@@ -39,64 +37,38 @@ export default async function Home({ searchParams }) {
   const { data: todasLasOfertas } = await supabase
     .from('ofertas')
     .select(
-      'id, vendedor_id, precio, estado_libro, creado_en, libros (titulo, editorial, imagen_url), perfiles (nombre, colegio, colegio_id)'
+      'id, vendedor_id, precio, estado_libro, creado_en, libros (isbn, titulo, editorial, imagen_url), perfiles_publicos (nombre, colegio_id)'
     )
     .eq('estado', 'disponible')
     .order('creado_en', { ascending: false })
     .limit(20)
 
+  // Traemos los nombres de colegios para mostrarlos
+  const colegioIds = [
+    ...new Set(
+      (todasLasOfertas || [])
+        .map((o) => o.perfiles_publicos?.colegio_id)
+        .filter(Boolean)
+    ),
+  ]
+  let nombresColegios = {}
+  if (colegioIds.length > 0) {
+    const { data: cols } = await supabase
+      .from('colegios')
+      .select('id, nombre')
+      .in('id', colegioIds)
+    for (const c of cols || []) nombresColegios[c.id] = c.nombre
+  }
+
   const ultimasOfertas =
     verMiColegio && miColegioId
       ? (todasLasOfertas || []).filter(
-          (o) => o.perfiles?.colegio_id === miColegioId
+          (o) => o.perfiles_publicos?.colegio_id === miColegioId
         )
       : todasLasOfertas || []
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-600">📚 Libracos</h1>
-          <nav className="flex items-center gap-3">
-            <a
-              href="https://cafecito.app/ggorza"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-amber-600 hover:text-amber-700"
-              title="Si Libracos te sirvió, invitame un cafecito"
-            >
-              ☕ Apoyá el proyecto
-            </a>
-            {user ? (
-              <>
-                <Link
-                  href="/perfil"
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Mi perfil
-                </Link>
-                <span className="text-sm text-gray-600">
-                  Hola, {user.user_metadata?.nombre || user.email}
-                </span>
-                <BotonSalir />
-              </>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm text-blue-600 hover:underline">
-                  Iniciar sesión
-                </Link>
-                <Link
-                  href="/registro"
-                  className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-                >
-                  Crear cuenta
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
-
+    <main className="flex-1 bg-gray-50">
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-4 pt-16 pb-8 text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-3">
@@ -206,6 +178,8 @@ export default async function Home({ searchParams }) {
           <ul className="space-y-3">
             {ultimasOfertas.map((oferta) => {
               const esPropia = user && oferta.vendedor_id === user.id
+              const nombreColegio =
+                nombresColegios[oferta.perfiles_publicos?.colegio_id]
               return (
                 <li
                   key={oferta.id}
@@ -239,9 +213,8 @@ export default async function Home({ searchParams }) {
                     <p className="text-xs text-gray-400 mt-1">
                       {user ? (
                         <>
-                          Ofrecido por {oferta.perfiles?.nombre}
-                          {oferta.perfiles?.colegio &&
-                            `, del ${oferta.perfiles.colegio}`}
+                          Ofrecido por {oferta.perfiles_publicos?.nombre}
+                          {nombreColegio && `, del ${nombreColegio}`}
                           , el {formatearFecha(oferta.creado_en)}
                         </>
                       ) : (
@@ -253,19 +226,14 @@ export default async function Home({ searchParams }) {
                     <p className="font-bold text-green-700 whitespace-nowrap">
                       ${oferta.precio.toLocaleString('es-AR')}
                     </p>
-                    {user ? (
-                      <BotonContactar
-                        ofertaId={oferta.id}
-                        titulo={oferta.libros?.titulo}
-                        vendedorNombre={oferta.perfiles?.nombre}
-                        esPropia={esPropia}
-                      />
+                    {esPropia ? (
+                      <span className="text-xs text-gray-400">Tu publicación</span>
                     ) : (
                       <Link
-                        href="/registro"
+                        href={`/buscar?isbn=${oferta.libros?.isbn || ''}`}
                         className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-green-700 whitespace-nowrap"
                       >
-                        💬 Contactar
+                        Me interesa
                       </Link>
                     )}
                   </div>
