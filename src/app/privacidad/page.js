@@ -90,15 +90,18 @@ export default function PrivacidadPage() {
             </p>
           </div>
 
-          <div>
+            <div>
             <h2 className="font-bold text-base mb-2 text-gray-900">
-              Sobre los menores
+              Solo para mayores de 18 años
             </h2>
             <p>
-              Libracos está pensado para ser usado por adultos (madres, padres y
-              tutores). No solicitamos ni buscamos datos de menores de edad.
+              El registro y uso de Libracos está reservado exclusivamente a
+              personas mayores de 18 años (madres, padres y tutores). Al
+              registrarte, declarás ser mayor de edad. No solicitamos ni
+              buscamos datos de menores de edad.
             </p>
           </div>
+
         </div>
 
         <div className="mt-8 pt-6 border-t">

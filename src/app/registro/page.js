@@ -17,6 +17,8 @@ export default function RegistroPage() {
   const [cargando, setCargando] = useState(false)
   const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false)
   const [abrioPrivacidad, setAbrioPrivacidad] = useState(false)
+  const [esMayor, setEsMayor] = useState(false)
+
 
 
 
@@ -39,6 +41,11 @@ if (!colegio) {
 
     if (!aceptaPrivacidad) {
       setError('Tenés que aceptar la política de privacidad para registrarte.')
+      return
+    }
+
+        if (!esMayor) {
+      setError('Tenés que declarar que sos mayor de 18 años para registrarte.')
       return
     }
 
@@ -198,6 +205,19 @@ if (!colegio) {
                 política de privacidad
               </Link>
               .
+            </label>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              id="mayor"
+              checked={esMayor}
+              onChange={(e) => setEsMayor(e.target.checked)}
+              className="mt-1"
+            />
+            <label htmlFor="mayor" className="text-sm text-gray-600">
+              Declaro que soy mayor de 18 años.
             </label>
           </div>
 
