@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import EscanerIsbn from '../vender/EscanerIsbn'
 import BotonContactar from './BotonContactar'
 
-export default function BuscarPage() {
+function BuscarContenido() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -793,5 +793,13 @@ async function registrarBusqueda() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function BuscarPage() {
+  return (
+    <Suspense fallback={null}>
+      <BuscarContenido />
+    </Suspense>
   )
 }
